@@ -1,18 +1,21 @@
 package com.rtedgeviewer
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
 import android.opengl.GLSurfaceView
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.Surface
 import android.view.TextureView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.nio.ByteBuffer
 
 class MainActivity : AppCompatActivity() {
 
@@ -55,7 +58,11 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 100)
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                100
+            )
         } else {
             setupTextureListener()
         }
@@ -82,15 +89,18 @@ class MainActivity : AppCompatActivity() {
                         textureView.height
                     )
 
-                    // Convert bytes → Bitmap
+                    // Convert output bytes → Bitmap
                     val bmp = byteArrayToBitmap(
                         processed,
                         textureView.width,
                         textureView.height
                     )
 
-                    // Send to OpenGL renderer
+                    // Update OpenGL renderer
                     glRenderer.latestFrame = bmp
+
+                    // ⭐ Save the processed frame to storage
+                    saveFrame(bmp)
                 }
             }
         }
@@ -178,7 +188,27 @@ class MainActivity : AppCompatActivity() {
 
     private fun byteArrayToBitmap(frame: ByteArray, width: Int, height: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        bitmap.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(frame))
+        bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(frame))
         return bitmap
+    }
+
+    // ⭐ Step 7: Save processed frame to Gallery using MediaStore API
+    private fun saveFrame(bitmap: Bitmap) {
+        val filename = "edge_${System.currentTimeMillis()}.png"
+
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, filename)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/RT_EdgeViewer")
+        }
+
+        val uri = contentResolver.insert(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            values
+        ) ?: return
+
+        val output = contentResolver.openOutputStream(uri)
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+        output?.close()
     }
 }
