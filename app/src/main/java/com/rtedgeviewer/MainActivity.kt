@@ -2,8 +2,10 @@ package com.rtedgeviewer
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.SurfaceTexture
 import android.hardware.camera2.*
+import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.view.Surface
 import android.view.TextureView
@@ -18,6 +20,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraManager: CameraManager
     private var cameraDevice: CameraDevice? = null
     private var cameraId: String = ""
+
+    // OpenGL
+    private lateinit var glView: GLSurfaceView
+    private lateinit var glRenderer: GLRenderer
 
     companion object {
         init {
@@ -36,6 +42,14 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         textureView = findViewById(R.id.cameraPreview)
+        glView = findViewById(R.id.glSurfaceView)
+
+        // Setup OpenGL renderer
+        glView.setEGLContextClientVersion(2)
+        glRenderer = GLRenderer()
+        glView.setRenderer(glRenderer)
+        glView.renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+
         cameraManager = getSystemService(CAMERA_SERVICE) as CameraManager
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -60,8 +74,23 @@ class MainActivity : AppCompatActivity() {
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
                 val rgbaFrame = extractFrameAsRGBA()
                 if (rgbaFrame != null) {
-                    val processed = processFrame(rgbaFrame, textureView.width, textureView.height)
-                    // Later: display this processed frame using OpenGL
+
+                    // Call native OpenCV processing
+                    val processed = processFrame(
+                        rgbaFrame,
+                        textureView.width,
+                        textureView.height
+                    )
+
+                    // Convert bytes → Bitmap
+                    val bmp = byteArrayToBitmap(
+                        processed,
+                        textureView.width,
+                        textureView.height
+                    )
+
+                    // Send to OpenGL renderer
+                    glRenderer.latestFrame = bmp
                 }
             }
         }
@@ -73,9 +102,7 @@ class MainActivity : AppCompatActivity() {
 
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED
-            ) {
-                return
-            }
+            ) return
 
             cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
                 override fun onOpened(device: CameraDevice) {
@@ -91,7 +118,6 @@ class MainActivity : AppCompatActivity() {
                     device.close()
                 }
             }, null)
-
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -148,3 +174,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         return rgba
+    }
+
+    private fun byteArrayToBitmap(frame: ByteArray, width: Int, height: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        bitmap.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(frame))
+        return bitmap
+    }
+}
