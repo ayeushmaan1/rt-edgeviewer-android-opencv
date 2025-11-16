@@ -25,5 +25,58 @@ This project implements a real-time camera edge detection system using:
 
 ---
 
-## 📸 Screenshots / GIF
-(Add your screenshots/GIFs here later)
+
+
+
+
+---
+
+## ⚙ Setup Instructions (Android)
+
+### 1️⃣ Install Required Tools
+Make sure you have:
+
+- **Android Studio / SDK**
+- **NDK (Side-by-side)**  
+- **CMake**
+- **LLDB**
+- **Java 17**
+
+You can install them in:
+
+
+### 2️⃣ Add OpenCV Android SDK
+Download OpenCV (latest Android version) from:
+
+https://opencv.org/releases/
+
+Extract and copy: 
+into the project:
+
+
+### 3️⃣ Build the Project
+You can build using:
+
+
+or open in Cursor / Android Studio → **Build**.
+
+### 4️⃣ Permissions Required
+Declared in AndroidManifest:
+
+- Camera access
+- Storage / Media saving
+
+### 5️⃣ Running the App
+1. Connect device  
+2. Run the app  
+3. You will see:
+   - Live camera preview  
+   - Processed OpenCV Canny output on top  
+   - Frames saved automatically in:
+     ```
+     Pictures/RT_EdgeViewer/
+     ```
+
+
+
+
